@@ -20,7 +20,23 @@ namespace plt = matplotlibcpp;
 using namespace std;
 using namespace rp::standalone::rplidar;
 
-#define MEDIANSIZE 50
+#define MEDIANSIZE 5
+
+#define INDEX_DISTANCE 0
+
+#define INDEX_ANG_DIFF 1
+
+#define FACE_DIRECTION M_PI
+
+const double RANGE = 10 * M_PI / 180.0;
+
+//RPLIDAR A2 min angle resolution is 0.45 degree
+const double MATCH_THREATHOLD = 0.45 * M_PI / 180.0;
+
+float dist = 0;
+float whillOri[3] = { 0,0,0 };
+
+float headOri[3] = { 0,0,0 };
 
 bool checkRPLIDARHealth(RPlidarDriver* drv)
 {
@@ -53,6 +69,59 @@ bool ctrl_c_pressed;
 void ctrlc(int)
 {
 	ctrl_c_pressed = true;
+}
+
+double Arrange(double val, double min, double max) {
+	double v = val;
+
+	while (v > max) {
+		v -= (max - min);
+		printf("-");
+	}
+
+	while (v < min) {
+		v += (max - min);
+		printf("+");
+	}
+
+	return v;
+}
+
+void InsertSort(double array[MEDIANSIZE][2], int len, int num) {
+
+	int j = 0;
+	double k[2] = { 0,0 };
+
+	for (int i = 1; i < len; i++) {
+		k[0] = array[i][0];
+		k[1] = array[i][1];
+		j = i - 1;
+
+		while ((j >= 0) && (array[j][num] > k[num])) {
+			array[j + 1][0] = array[j][0];
+			array[j + 1][1] = array[j][1];
+			j--;
+		}
+		array[j + 1][0] = k[0];
+		array[j + 1][1] = k[1];
+	}
+
+}
+
+double Median(double array[MEDIANSIZE][2], int len) {
+	double val = 0;
+
+	InsertSort(array, len, INDEX_DISTANCE);
+
+	if (len % 2 == 0) {
+		val = (array[(len - 1) / 2][0] + array[(len - 1) / 2 + 1][0]) / 2;
+	}
+	else {
+		val = array[len / 2][0];
+	}
+
+	return val;
+
 }
 
 int main() {
@@ -150,42 +219,66 @@ int main() {
 		rplidar_response_measurement_node_hq_t nodes[8192];
 		size_t   count = _countof(nodes);
 		vector<double> x(8192), y(8192);
+		vector<double > Dx(1), Dy(1);
+		double  nearData[MEDIANSIZE][2] = {  };
 		int graphCount = 0;
+
+		double headDir = headOri[1] + FACE_DIRECTION;
+
+		for (int i = 0;i < MEDIANSIZE;i++) {
+			nearData[i][0] = 6;
+			nearData[i][1] = RANGE;
+		}
 
 		graphCount = 0;
 		op_result = drv->grabScanDataHq(nodes, count);
 		if (IS_OK(op_result)) {
 			drv->ascendScanData(nodes, count);
 			for (int pos = 0; pos < (int)count; ++pos) {
-				double dis = nodes[pos].dist_mm_q2 / 4.0;
+				double dis = nodes[pos].dist_mm_q2 / 4.0 / 1000.0;
 				double arg = nodes[pos].angle_z_q14 * M_PI / 2.0 / (1 << 14);
-				if (nodes[pos].quality != 0 && dis < 6000 && dis > 15 && graphCount < 8192) {
+				if (nodes[pos].quality != 0 && dis < 6 && dis > 0.015 && graphCount < 8192) {
 
-					x.at(graphCount) = dis * cos(arg) * 0.001;
-					y.at(graphCount++) = dis * sin(arg) * 0.001;
+					x.at(graphCount) = dis * cos(arg - M_PI / 2);
+					y.at(graphCount++) = dis * sin(arg - M_PI / 2);
 
-					//char str[100];
-					//sprintf(str, "%f\t%f\n",
-					//	dis, arg);
+					if (abs(Arrange(arg - headDir, -M_PI, M_PI)) < nearData[MEDIANSIZE - 1][1]) {
+						nearData[MEDIANSIZE - 1][0] = dis;
+						nearData[MEDIANSIZE - 1][1] = abs(Arrange(arg - headDir, -M_PI, M_PI));
+						InsertSort(nearData, MEDIANSIZE, INDEX_ANG_DIFF);
 
-					//writing_file << str;
+						//for (int i = 0;i < MEDIANSIZE;i++) {
+						//	printf("nearData[%d] : dist -> %f ang -> %f\n", i, nearData[i][0], nearData[i][1]);
+						//}
+
+					}
 				}
+
 			}
+
+			dist = Median(nearData, MEDIANSIZE);
 
 			//printf("count : %d\n", graphCount);
 			plt::clf();
-			plt::xlim(-6, 6);
-			plt::ylim(-6, 6);
+			plt::xlim(-6.5, 6.5);
+			plt::ylim(-6.5, 6.5);
 			plt::scatter(x, y);
 			plt::draw();
+			//plt::pause(0.1);
+
+
+			Dx.at(0) = dist * cos(headDir - M_PI / 2);
+			Dy.at(0) = dist * sin(headDir - M_PI / 2);
+			plt::scatter(Dx, Dy, 5);
+			plt::draw();
 			plt::pause(0.1);
+
 		}
 
-		//if (showCount++ > 10) {
-			//for (int i = 0;i < graphCount;i++) {
-			//	printf("X: %f, Y: %f\n", x.at(i), y.at(i));
-			//}
-		//}
+		vector<double>().swap(x);
+		vector<double>().swap(y);
+		vector<double>().swap(Dx);
+		vector<double>().swap(Dy);
 
 		if (_kbhit()) {
 			if (cin.get() == '\n') {
@@ -194,14 +287,6 @@ int main() {
 				break;
 			}
 		}
-
-		//if ((COUNTUP++) > 100) {
-		//	drv->stop();
-		//	drv->stopMotor();
-		//	break;
-		//}
-
-		//std::printf("Count up : %d\n", COUNTUP);
 	}
 
 	// done!
@@ -210,7 +295,6 @@ int main() {
 on_finished:
 	RPlidarDriver::DisposeDriver(drv);
 	drv = NULL;
-
 
 	return 0;
 }
