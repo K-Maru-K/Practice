@@ -239,8 +239,8 @@ void DetectDistance() {
 	while (true) {
 		rplidar_response_measurement_node_hq_t nodes[8192];
 		size_t   count = _countof(nodes);
-		std::vector<double> x(8192), y(8192);
-		std::vector<double > Dx(1), Dy(1);
+		//std::vector<double> x(8192), y(8192);
+		//std::vector<double > Dx(1), Dy(1);
 		double  nearData[MEDIANSIZE][2] = {  };
 		int graphCount = 0;
 
@@ -262,8 +262,8 @@ void DetectDistance() {
 				double arg = nodes[pos].angle_z_q14 * M_PI / 2.0 / (1 << 14);
 				if (nodes[pos].quality != 0 && dis < 6 && dis > 0.015) {
 
-					x.at(graphCount) = dis * cos(arg - M_PI / 2);
-					y.at(graphCount++) = dis * sin(arg - M_PI / 2);
+					//x.at(graphCount) = dis * cos(arg - M_PI / 2);
+					//y.at(graphCount++) = dis * sin(arg - M_PI / 2);
 
 					if (abs(Arrange(arg - headDir, -M_PI, M_PI)) < nearData[MEDIANSIZE - 1][1]) {
 						nearData[MEDIANSIZE - 1][0] = dis;
@@ -276,27 +276,29 @@ void DetectDistance() {
 
 			dist = Median(nearData, MEDIANSIZE);
 
-			//printf("count : %d\n", graphCount);
-			plt::clf();
-			plt::xlim(-6.5, 6.5);
-			plt::ylim(-6.5, 6.5);
-			plt::scatter(x, y);
-			plt::draw();
-			//plt::pause(0.1);
-
-
-			Dx.at(0) = dist * cos(headDir - M_PI / 2);
-			Dy.at(0) = dist * sin(headDir - M_PI / 2);
-			plt::scatter(Dx, Dy, 5);
-			plt::draw();
-			plt::pause(0.1);
+//#pragma region Graph show
+//			//printf("count : %d\n", graphCount);
+//			plt::clf();
+//			plt::xlim(-6.5, 6.5);
+//			plt::ylim(-6.5, 6.5);
+//			plt::scatter(x, y);
+//			plt::draw();
+//			//plt::pause(0.1);
+//
+//
+//			Dx.at(0) = dist * cos(headDir - M_PI / 2);
+//			Dy.at(0) = dist * sin(headDir - M_PI / 2);
+//			plt::scatter(Dx, Dy, 5);
+//			plt::draw();
+//			plt::pause(0.1);
+//#pragma endregion
 
 		}
 
-		std::vector<double>().swap(x);
-		std::vector<double>().swap(y);
-		std::vector<double>().swap(Dx);
-		std::vector<double>().swap(Dy);
+		//std::vector<double>().swap(x);
+		//std::vector<double>().swap(y);
+		//std::vector<double>().swap(Dx);
+		//std::vector<double>().swap(Dy);
 
 		if (!appRunning) {
 			drv->stop();
@@ -460,144 +462,144 @@ void HeadOrientation() {
 /// <summary>
 /// port is 52520
 /// </summary>
-//void WhillOrientation() {
-//
-//	WSAData wsaData;
-//
-//	SOCKET sock;
-//	struct sockaddr_in addr;
-//
-//	char buf[2048];
-//
-//	int err = 0;
-//
-//	err = WSAStartup(MAKEWORD(2, 0), &wsaData);
-//
-//	if (err != 0) {
-//		switch (err) {
-//		case WSASYSNOTREADY:
-//			printf("WSASYSNOTREADY\n");
-//			break;
-//		case WSAVERNOTSUPPORTED:
-//			printf("WSAVERNOTSUPPORTED\n");
-//			break;
-//		case WSAEINPROGRESS:
-//			printf("WSAEINPROGRESS\n");
-//			break;
-//		case WSAEPROCLIM:
-//			printf("WSAEPROCLIM\n");
-//			break;
-//		case WSAEFAULT:
-//			printf("WSAEFAULT\n");
-//			break;
-//		}
-//	}
-//
-//	sock = socket(AF_INET, SOCK_DGRAM, 0);
-//
-//	addr.sin_family = AF_INET;
-//	addr.sin_port = htons(52520);
-//	addr.sin_addr.S_un.S_addr = INADDR_ANY;
-//
-//	err = bind(sock, (struct sockaddr*)&addr, sizeof(addr));
-//	printf("Bind Error : %d\n", err);
-//
-//	memset(buf, 0, sizeof(buf));
-//
-//	int saveLen = 0;
-//	unsigned char saveData[100] = "";
-//	char data = 0;
-//
-//	while (appRunning) {
-//		int len = recv(sock, buf, sizeof(buf), 0);
-//
-//		//printf("len : %d\n", len);
-//		//printf("Error : %d\n", WSAGetLastError());
-//
-//		for (int i = 0;i < len;i++) {
-//			data = buf[i];
-//
-//			//printf("%x-", data);
-//			if ((data & 0xFF) == HEADER && saveLen != 0) {
-//				char conv_data[4] = "";
-//
-//				for (int j = 0;j < saveLen;j++) {
-//
-//					if (saveData[j] == PITCHSIGN) {
-//						j++;
-//						for (int k = 0;k < 4;k++) {
-//							if (saveData[j] == REPLACE) {
-//								j++;
-//								conv_data[k] = saveData[j] ^ 0xFF;
-//							}
-//							else {
-//								conv_data[k] = saveData[j];
-//							}
-//							j++;
-//						}
-//						j--;
-//						b_f bf;
-//						for (int i = 0;i < 4;i++) {
-//							bf.bval[i] = conv_data[i];
-//						}
-//						whillOri[0] = bf.fval;
-//					}
-//					else if (saveData[j] == YAWSIGN) {
-//						j++;
-//						for (int k = 0;k < 4;k++) {
-//							if (saveData[j] == REPLACE) {
-//								j++;
-//								conv_data[k] = saveData[j] ^ 0xFF;
-//							}
-//							else {
-//								conv_data[k] = saveData[j];
-//							}
-//							j++;
-//						}
-//						j--;
-//						b_f bf;
-//						for (int i = 0;i < 4;i++) {
-//							bf.bval[i] = conv_data[i];
-//						}
-//						whillOri[1] = bf.fval;
-//					}
-//					else if (saveData[j] == ROLLSIGN) {
-//						j++;
-//						for (int k = 0;k < 4;k++) {
-//							if (saveData[j] == REPLACE) {
-//								j++;
-//								conv_data[k] = saveData[j] ^ 0xFF;
-//							}
-//							else {
-//								conv_data[k] = saveData[j];
-//							}
-//							j++;
-//						}
-//						j--;
-//						b_f bf;
-//						for (int i = 0;i < 4;i++) {
-//							bf.bval[i] = conv_data[i];
-//						}
-//						whillOri[2] = bf.fval;
-//					}
-//				}
-//
-//				//printf("pitch : %f\nyaw : %f\nroll : %f\n", headOri[0], headOri[1], headOri[2]);
-//				saveLen = 0;
-//			}
-//
-//			if ((data & 0xFF) == HEADER || saveLen != 0) {
-//				saveData[saveLen++] = (unsigned char)(data & 0xFF);
-//			}
-//		}
-//
-//		printf("\n");
-//	}
-//
-//	closesocket(sock);
-//
-//	WSACleanup();
-//}
+void WhillOrientation() {
+
+	WSAData wsaData;
+
+	SOCKET sock;
+	struct sockaddr_in addr;
+
+	char buf[2048];
+
+	int err = 0;
+
+	err = WSAStartup(MAKEWORD(2, 0), &wsaData);
+
+	if (err != 0) {
+		switch (err) {
+		case WSASYSNOTREADY:
+			printf("WSASYSNOTREADY\n");
+			break;
+		case WSAVERNOTSUPPORTED:
+			printf("WSAVERNOTSUPPORTED\n");
+			break;
+		case WSAEINPROGRESS:
+			printf("WSAEINPROGRESS\n");
+			break;
+		case WSAEPROCLIM:
+			printf("WSAEPROCLIM\n");
+			break;
+		case WSAEFAULT:
+			printf("WSAEFAULT\n");
+			break;
+		}
+	}
+
+	sock = socket(AF_INET, SOCK_DGRAM, 0);
+
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(52520);
+	addr.sin_addr.S_un.S_addr = INADDR_ANY;
+
+	err = bind(sock, (struct sockaddr*)&addr, sizeof(addr));
+	printf("Bind Error : %d\n", err);
+
+	memset(buf, 0, sizeof(buf));
+
+	int saveLen = 0;
+	unsigned char saveData[100] = "";
+	char data = 0;
+
+	while (appRunning) {
+		int len = recv(sock, buf, sizeof(buf), 0);
+
+		//printf("len : %d\n", len);
+		//printf("Error : %d\n", WSAGetLastError());
+
+		for (int i = 0;i < len;i++) {
+			data = buf[i];
+
+			//printf("%x-", data);
+			if ((data & 0xFF) == HEADER && saveLen != 0) {
+				char conv_data[4] = "";
+
+				for (int j = 0;j < saveLen;j++) {
+
+					if (saveData[j] == PITCHSIGN) {
+						j++;
+						for (int k = 0;k < 4;k++) {
+							if (saveData[j] == REPLACE) {
+								j++;
+								conv_data[k] = saveData[j] ^ 0xFF;
+							}
+							else {
+								conv_data[k] = saveData[j];
+							}
+							j++;
+						}
+						j--;
+						b_f bf;
+						for (int i = 0;i < 4;i++) {
+							bf.bval[i] = conv_data[i];
+						}
+						whillOri[0] = bf.fval;
+					}
+					else if (saveData[j] == YAWSIGN) {
+						j++;
+						for (int k = 0;k < 4;k++) {
+							if (saveData[j] == REPLACE) {
+								j++;
+								conv_data[k] = saveData[j] ^ 0xFF;
+							}
+							else {
+								conv_data[k] = saveData[j];
+							}
+							j++;
+						}
+						j--;
+						b_f bf;
+						for (int i = 0;i < 4;i++) {
+							bf.bval[i] = conv_data[i];
+						}
+						whillOri[1] = bf.fval;
+					}
+					else if (saveData[j] == ROLLSIGN) {
+						j++;
+						for (int k = 0;k < 4;k++) {
+							if (saveData[j] == REPLACE) {
+								j++;
+								conv_data[k] = saveData[j] ^ 0xFF;
+							}
+							else {
+								conv_data[k] = saveData[j];
+							}
+							j++;
+						}
+						j--;
+						b_f bf;
+						for (int i = 0;i < 4;i++) {
+							bf.bval[i] = conv_data[i];
+						}
+						whillOri[2] = bf.fval;
+					}
+				}
+
+				//printf("pitch : %f\nyaw : %f\nroll : %f\n", headOri[0], headOri[1], headOri[2]);
+				saveLen = 0;
+			}
+
+			if ((data & 0xFF) == HEADER || saveLen != 0) {
+				saveData[saveLen++] = (unsigned char)(data & 0xFF);
+			}
+		}
+
+		printf("\n");
+	}
+
+	closesocket(sock);
+
+	WSACleanup();
+}
 
 //int main() {
 //	//thread th_headori(HeadOrientation);
