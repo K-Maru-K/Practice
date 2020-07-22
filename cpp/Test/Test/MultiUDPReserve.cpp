@@ -18,6 +18,10 @@
 
 #include "SerialWrapper.h"
 
+#include <iostream>
+#include <chrono>
+#include <ctime>
+
 namespace plt = matplotlibcpp;
 //using namespace std;
 using namespace rp::standalone::rplidar;
@@ -29,6 +33,10 @@ float whillBias[3] = { 0,0,0 };
 float headBias[3] = { 0,0,0 };
 
 bool appRunning = true;
+
+float preProjOri[2] = { 0,0 };
+
+auto preTime = std::chrono::system_clock::now();
 
 #pragma region Definision
 
@@ -73,7 +81,6 @@ bool checkRPLIDARHealth(RPlidarDriver* drv)
 {
 	u_result     op_result;
 	rplidar_response_device_health_t healthinfo;
-
 
 	op_result = drv->getHealth(healthinfo);
 	if (IS_OK(op_result)) { // the macro IS_OK is the preperred way to judge whether the operation is succeed.
@@ -396,11 +403,20 @@ void KeiganSend() {
 		int retTilt = snprintf(tiltData, sizeof tiltData, "%f", projOri[1]);
 
 		if (retPan < sizeof panData && retTilt < sizeof tiltData) {
+			if (abs(preProjOri[0] - projOri[0]) > 0.001 || abs(preProjOri[1] - projOri[1]) > 0.001) {
+				auto t = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - preTime);
+				std::cout << t.count() << std::endl;
+				preTime = std::chrono::system_clock::now();
+			}
 
 			sendto(sock_pan, panData, retPan, 0, (struct sockaddr*)&addr_pan, sizeof(addr_pan));
 			sendto(sock_tilt, tiltData, retTilt, 0, (struct sockaddr*)&addr_tilt, sizeof(addr_tilt));
 
 		}
+
+		preProjOri[0] = projOri[0];
+		preProjOri[1] = projOri[1];
+
 	}
 
 	closesocket(sock_pan);
@@ -657,7 +673,7 @@ int main() {
 	std::thread th_dist(DetectDistance);
 	std::thread th_headori(HeadOrientation);
 	std::thread th_whillori(WhillOrientation);
-	std::thread th_Keigan(KeiganSend);
+	//std::thread th_Keigan(KeiganSend);
 
 	while (true) {
 		if (_kbhit() && _getch() == 's') {
@@ -670,12 +686,108 @@ int main() {
 		whillBias[i] = whillOri[i];
 	}
 
+#pragma region Keigan
+
+	WSAData wsaData_pan, wsaData_tilt;
+
+	SOCKET sock_pan, sock_tilt;
+	struct sockaddr_in addr_pan, addr_tilt;
+
+	int err_pan = 0, err_tilt = 0;
+
+	err_pan = WSAStartup(MAKEWORD(2, 0), &wsaData_pan);
+	err_tilt = WSAStartup(MAKEWORD(2, 0), &wsaData_tilt);
+
+	if (err_pan != 0) {
+		switch (err_pan) {
+		case WSASYSNOTREADY:
+			printf("Pan: WSASYSNOTREADY\n");
+			break;
+		case WSAVERNOTSUPPORTED:
+			printf("Pan: WSAVERNOTSUPPORTED\n");
+			break;
+		case WSAEINPROGRESS:
+			printf("Pan: WSAEINPROGRESS\n");
+			break;
+		case WSAEPROCLIM:
+			printf("Pan: WSAEPROCLIM\n");
+			break;
+		case WSAEFAULT:
+			printf("Pan: WSAEFAULT\n");
+			break;
+		}
+	}
+
+	if (err_tilt != 0) {
+		switch (err_tilt) {
+		case WSASYSNOTREADY:
+			printf("Tilt: WSASYSNOTREADY\n");
+			break;
+		case WSAVERNOTSUPPORTED:
+			printf("Tilt: WSAVERNOTSUPPORTED\n");
+			break;
+		case WSAEINPROGRESS:
+			printf("Tilt: WSAEINPROGRESS\n");
+			break;
+		case WSAEPROCLIM:
+			printf("Tilt: WSAEPROCLIM\n");
+			break;
+		case WSAEFAULT:
+			printf("Tilt: WSAEFAULT\n");
+			break;
+		}
+	}
+
+
+	sock_pan = socket(AF_INET, SOCK_DGRAM, 0);
+
+	addr_pan.sin_family = AF_INET;
+	addr_pan.sin_port = htons(7777);
+	addr_pan.sin_addr.S_un.S_addr = inet_addr("192.168.11.3");
+
+	sock_tilt = socket(AF_INET, SOCK_DGRAM, 0);
+
+	addr_tilt.sin_family = AF_INET;
+	addr_tilt.sin_port = htons(7774);
+	addr_tilt.sin_addr.S_un.S_addr = inet_addr("192.168.11.4");
+
+#pragma endregion
+
 
 	while (true) {
 
-		printf("Dist : %f\n", dist);
-		printf("HeadOri : %f\n%f\n%f\n\n", headOri[0], headOri[1], headOri[2]);
-		printf("WhillOri : %f\n%f\n%f\n\n", whillOri[0], whillOri[1], whillOri[2]);
+		//printf("Dist : %f\n", dist);
+		//printf("HeadOri : %f\n%f\n%f\n\n", headOri[0], headOri[1], headOri[2]);
+		//printf("WhillOri : %f\n%f\n%f\n\n", whillOri[0], whillOri[1], whillOri[2]);
+
+#pragma region Keigan_loop
+
+		char panData[64], tiltData[64];
+
+		float projOri[2];
+
+		projOri[0] = headOri[1] - whillOri[1];
+		projOri[1] = headOri[2];
+
+		int retPan = snprintf(panData, sizeof panData, "%f", projOri[0]);
+		int retTilt = snprintf(tiltData, sizeof tiltData, "%f", projOri[1]);
+
+		if (retPan < sizeof panData && retTilt < sizeof tiltData) {
+			if (abs(preProjOri[0] - projOri[0]) > 0.001 || abs(preProjOri[1] - projOri[1]) > 0.001) {
+				auto t = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - preTime);
+				std::cout << t.count() << std::endl;
+				preTime = std::chrono::system_clock::now();
+			}
+
+			sendto(sock_pan, panData, retPan, 0, (struct sockaddr*)&addr_pan, sizeof(addr_pan));
+			sendto(sock_tilt, tiltData, retTilt, 0, (struct sockaddr*)&addr_tilt, sizeof(addr_tilt));
+
+		}
+
+		preProjOri[0] = projOri[0];
+		preProjOri[1] = projOri[1];
+
+#pragma endregion
 
 		if (_kbhit()) {
 			appRunning = false;
@@ -683,10 +795,18 @@ int main() {
 		}
 	}
 
+#pragma region Keigan_end
+	closesocket(sock_pan);
+	closesocket(sock_tilt);
+
+	WSACleanup();
+#pragma endregion
+
+
 	th_dist.join();
 	th_headori.join();
 	th_whillori.join();
-	th_Keigan.join();
+	//th_Keigan.join();
 
 	return 0;
 }
