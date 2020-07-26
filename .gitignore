@@ -6,13 +6,5 @@
 !/cpp/SerialTest/SerialTest/*.h
 !/cpp/SerialTest/SerialTest/*.c
 
-/cpp/Test/*
-!/cpp/Test/Test
-
-/cpp/Test/Test/*
-!/cpp/Test/Test/*.cpp
-!/cpp/Test/Test/*.h
-!/cpp/Test/Test/*.c
-
 /Python/DataPlot/*
 !/Python/DataPlot/*.py
